@@ -1,0 +1,33 @@
+# === 1. 开发环境/IDE 相关 ===
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+.DS_Store
+
+# === 2. 后端 (wisdom-hub-server) 相关 ===
+**/target/
+**/mvnw
+**/mvnw.cmd
+**/.mvn/
+# 忽略敏感配置文件
+**/src/main/resources/application-dev.yml
+**/src/main/resources/application-test.yml
+**/src/main/resources/application-prod.yml
+
+# === 3. 前端 (wisdom-hub-web) 相关 ===
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/*.local
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# === 4. 数据库与日志 ===
+**/logs/
+**/*.log
+**/*.sql.gz
+**/*.sql.bak
+**/*.db

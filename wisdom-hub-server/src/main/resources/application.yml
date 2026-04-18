@@ -1,0 +1,22 @@
+# application.yml
+server:
+  port: 8080
+
+spring:
+  application:
+    name: wisdom-hub
+  profiles:
+    active: dev
+
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.wisdomhub.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+logging:
+  level:
+    com.wisdomhub: DEBUG
+    org.springframework.mail: DEBUG
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
