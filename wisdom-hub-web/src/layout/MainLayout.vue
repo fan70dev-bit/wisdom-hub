@@ -4,6 +4,7 @@
       <div class="logo">Wisdom Hub</div>
       <el-menu router :default-active="$route.path" background-color="#304156" text-color="#fff">
         <el-menu-item index="/home">首页看板</el-menu-item>
+        <el-menu-item index="/post">发帖中心</el-menu-item>
         <el-menu-item index="/ai">AI 助手 (待开发)</el-menu-item>
       </el-menu>
     </el-aside>

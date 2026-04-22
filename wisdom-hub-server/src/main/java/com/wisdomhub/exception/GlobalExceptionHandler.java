@@ -17,9 +17,9 @@ import java.util.Map;
  */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
-
+    
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
-
+    
     /**
      * 业务异常处理
      */
@@ -29,7 +29,17 @@ public class GlobalExceptionHandler {
         log.warn("业务异常: {}", e.getMessage());
         return buildErrorResponse(e.getCode(), e.getMessage());
     }
-
+    
+    /**
+     * 未授权异常处理（401）
+     */
+    @ExceptionHandler(UnauthorizedException.class)
+    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    public Map<String, Object> handleUnauthorizedException(UnauthorizedException e) {
+        log.warn("未授权: {}", e.getMessage());
+        return buildErrorResponse(401, e.getMessage());
+    }
+    
     /**
      * 参数校验异常处理
      */
@@ -41,7 +51,7 @@ public class GlobalExceptionHandler {
         log.warn("参数校验异常: {}", message);
         return buildErrorResponse(400, message);
     }
-
+    
     /**
      * 系统异常处理
      */
@@ -51,7 +61,7 @@ public class GlobalExceptionHandler {
         log.error("系统异常", e);
         return buildErrorResponse(500, "系统繁忙，请稍后再试");
     }
-
+    
     private Map<String, Object> buildErrorResponse(Integer code, String message) {
         Map<String, Object> response = new HashMap<>();
         response.put("success", false);

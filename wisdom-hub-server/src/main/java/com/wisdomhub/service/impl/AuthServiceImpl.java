@@ -7,6 +7,7 @@ import com.wisdomhub.exception.BusinessException;
 import com.wisdomhub.mapper.UserMapper;
 import com.wisdomhub.service.AuthService;
 import com.wisdomhub.util.EmailValidator;
+import com.wisdomhub.util.JwtUtil;
 import com.wisdomhub.util.RedisKeyUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,7 @@ public class AuthServiceImpl implements AuthService {
     private final StringRedisTemplate redisTemplate;
     private final UserMapper userMapper;
     private final EmailValidator emailValidator;
+    private final JwtUtil jwtUtil;  // 新增注入
 
     @Value("${spring.mail.username}")
     private String mailFrom;
@@ -52,11 +54,13 @@ public class AuthServiceImpl implements AuthService {
     public AuthServiceImpl(JavaMailSender mailSender,
                            StringRedisTemplate redisTemplate,
                            UserMapper userMapper,
-                           EmailValidator emailValidator) {
+                           EmailValidator emailValidator,
+                           JwtUtil jwtUtil) {  // 新增构造器注入
         this.mailSender = mailSender;
         this.redisTemplate = redisTemplate;
         this.userMapper = userMapper;
         this.emailValidator = emailValidator;
+        this.jwtUtil = jwtUtil;
     }
 
     @Override
@@ -149,15 +153,15 @@ public class AuthServiceImpl implements AuthService {
         // 4. 删除验证码（一次性使用）
         redisTemplate.delete(codeKey);
 
-        // 5. 生成Token（简单模拟，实际应使用JWT）
-        String token = generateToken(user);
+        // 5. 生成真正的 JWT Token（替换原来的 UUID）
+        String token = jwtUtil.generateToken(user.getId(), user.getEmail());
 
         // 6. 构建响应
         return LoginResponse.builder()
                 .userId(user.getId())
                 .email(user.getEmail())
                 .nickname(user.getNickname())
-                .token(token)
+                .token(token)  // 现在是真正的 JWT
                 .isNewUser(isNewUser)
                 .loginTime(LocalDateTime.now())
                 .build();
