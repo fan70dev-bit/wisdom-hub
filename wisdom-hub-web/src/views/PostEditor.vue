@@ -16,9 +16,9 @@
             :loading="publishLoading" 
             @click="handlePublishOrUpdate"
           >
-            {{ editingId ? '保存修改' : '发布动态' }}
+            {{ editingId ? '保存修改 (Update)' : '发布动态 (Publish)' }}
           </el-button>
-          <el-button v-if="editingId" @click="resetForm">取消</el-button>
+          <el-button v-if="editingId" @click="resetForm">取消编辑</el-button>
         </div>
       </header>
 
@@ -103,9 +103,19 @@
             <template #default="scope">{{ formatDate(scope.row.createTime) }}</template>
           </el-table-column>
 
-          <el-table-column label="操作" width="100" fixed="right">
+          <el-table-column label="操作" width="160" fixed="right">
             <template #default="scope">
-              <el-button link type="primary" @click="handleEdit(scope.row)">回填</el-button>
+              <el-button link type="primary" @click="handleEdit(scope.row)">编辑</el-button>
+              <el-popconfirm 
+                title="确定要删除并清理云端图片吗？" 
+                confirm-button-text="确定"
+                cancel-button-text="取消"
+                @confirm="handleDelete(scope.row.id)"
+              >
+                <template #reference>
+                  <el-button link type="danger">删除</el-button>
+                </template>
+              </el-popconfirm>
             </template>
           </el-table-column>
         </el-table>
@@ -117,16 +127,13 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { VideoCamera, Picture, Cherry, Refresh, Reading } from '@element-plus/icons-vue'
-
-// Markdown 解析与高亮
 import MarkdownIt from 'markdown-it'
 import hljs from 'highlight.js'
 import 'github-markdown-css/github-markdown.css'
-import 'highlight.js/styles/github.css' // 引入 GitHub 风格高亮样式
+import 'highlight.js/styles/github.css'
 
-// 配置 MarkdownIt 结合 Highlight.js
 const md = new MarkdownIt({
   html: true,
   linkify: true,
@@ -134,9 +141,7 @@ const md = new MarkdownIt({
   highlight: function (str, lang) {
     if (lang && hljs.getLanguage(lang)) {
       try {
-        return '<pre><code class="hljs">' +
-               hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
-               '</code></pre>';
+        return '<pre><code class="hljs">' + hljs.highlight(str, { language: lang, ignoreIllegals: true }).value + '</code></pre>';
       } catch (__) {}
     }
     return '<pre><code class="hljs">' + md.utils.escapeHtml(str) + '</code></pre>';
@@ -160,28 +165,22 @@ const form = reactive({
 
 const getToken = () => localStorage.getItem('token')
 
-// 图片上传成功
 const handleImageSuccess = (response) => {
   if (response.code === 200) {
     const imageUrl = response.data.url
     if (!form.coverImage) form.coverImage = imageUrl
-    insertAtCursor(`\n![图片](${imageUrl})\n`)
-    ElMessage.success('图片已插入，并设为封面图')
+    insertAtCursor(`\n![图片描述](${imageUrl})\n`)
+    ElMessage.success('上传成功')
   }
 }
 
-// 预览渲染
 const previewHtml = computed(() => {
   let html = md.render(form.content || '*预览区域*')
-  // B站 BV 号转卡片逻辑
   const bvRegex = /(BV[a-zA-Z0-9]{10})/g
   return html.replace(bvRegex, (match) => `
     <div class="bili-card-box">
       <div class="bili-tag">📺 Bilibili</div>
-      <div class="bili-detail">
-        <strong>视频解析</strong><br/>
-        <small>${match}</small>
-      </div>
+      <div class="bili-detail"><strong>视频解析</strong><br/><small>${match}</small></div>
     </div>`)
 })
 
@@ -195,24 +194,65 @@ const loadLocalList = async () => {
   } finally { syncLoading.value = false }
 }
 
+// 核心修改：支持修改和新增切换
 const handlePublishOrUpdate = async () => {
   if (!form.content) return ElMessage.warning('内容不能为空')
   publishLoading.value = true
+  
   try {
-    const res = await axios.post('http://localhost:8080/api/post/create', {
+    // 根据是否有 editingId 决定调用哪个接口
+    const isEdit = !!editingId.value
+    const url = isEdit ? 'http://localhost:8080/api/post/update' : 'http://localhost:8080/api/post/create'
+    const method = isEdit ? 'put' : 'post'
+    
+    const payload = {
       ...form,
+      id: editingId.value, // 修改时必须带上 ID
       type: form.title ? 0 : 1,
       visibility: form.isPrivate ? 1 : 0
-    }, { headers: { Authorization: `Bearer ${getToken()}` } })
-    if (res.data.code === 200) {
-      ElMessage.success('操作成功'); resetForm(); loadLocalList();
     }
-  } finally { publishLoading.value = false }
+
+    const res = await axios[method](url, payload, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    })
+
+    if (res.data.code === 200) {
+      ElMessage.success(isEdit ? '修改成功' : '发布成功')
+      resetForm()
+      loadLocalList()
+    }
+  } catch (err) {
+    ElMessage.error('操作失败')
+  } finally {
+    publishLoading.value = false
+  }
+}
+
+// 新增：删除逻辑
+const handleDelete = async (id) => {
+  try {
+    const res = await axios.delete(`http://localhost:8080/api/post/${id}`, {
+      headers: { Authorization: `Bearer ${getToken()}` }
+    })
+    if (res.data.code === 200) {
+      ElMessage.success('删除成功，云端资源已同步清理')
+      loadLocalList()
+    }
+  } catch (err) {
+    ElMessage.error('删除失败')
+  }
 }
 
 const handleEdit = (row) => {
   editingId.value = row.id 
-  Object.assign(form, { ...row, isPrivate: row.visibility === 1 })
+  Object.assign(form, {
+    title: row.title || '',
+    content: row.content || '',
+    videoUrl: row.videoUrl || '',
+    coverImage: row.coverImage || '',
+    isPrivate: row.visibility === 1
+  })
+  window.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
 const resetForm = () => {
@@ -234,6 +274,7 @@ onMounted(loadLocalList)
 </script>
 
 <style scoped>
+/* 保持原有样式，仅微调 */
 .wisdom-master-container { height: 100vh; overflow-y: auto; background: #f8f9fa; }
 .editor-section { height: 80vh; display: flex; flex-direction: column; background: #fff; border-bottom: 2px solid #eee; }
 .editor-header { padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
@@ -255,10 +296,8 @@ onMounted(loadLocalList)
 .table-content-text { font-size: 13px; color: #666; margin: 4px 0; }
 .tags-row { display: flex; gap: 8px; }
 
-/* 代码块增强 */
 :deep(.markdown-body pre) { background-color: #f6f8fa !important; padding: 16px !important; border-radius: 8px !important; }
 
-/* B站卡片预览样式 */
 :deep(.bili-card-box) {
   background: #f1f2f3; border: 1px solid #e3e5e7; padding: 10px; border-radius: 6px; display: flex; gap: 15px; margin: 10px 0;
 }
