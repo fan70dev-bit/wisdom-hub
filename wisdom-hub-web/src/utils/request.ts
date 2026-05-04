@@ -1,18 +1,28 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 
-const instance = axios.create({
-  baseURL: '/api', // 对应上面的代理
+const request = axios.create({
+  baseURL: 'http://localhost:8080/api', // 对应你的后端地址
   timeout: 5000
 })
 
-// 简单处理响应
-instance.interceptors.response.use(
-  res => res.data,
-  err => {
-    ElMessage.error(err.response?.data?.message || '网络连接失败')
-    return Promise.reject(err)
+// 请求拦截器
+request.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers['Authorization'] = `Bearer ${token}`
   }
-)
+  return config
+}, error => {
+  return Promise.reject(error)
+})
 
-export default instance
+// 响应拦截器
+request.interceptors.response.use(response => {
+  return response
+}, error => {
+  ElMessage.error(error.response?.data?.message || '网络错误')
+  return Promise.reject(error)
+})
+
+export default request

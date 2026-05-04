@@ -2,7 +2,7 @@
   <el-container class="main-layout">
     <el-aside width="260px" class="aside-menu">
       <div class="brand-section">
-        <img src="@/assets/Login.png" class="brand-logo" alt="logo" />
+        <img src="@/assets/3.jpg" class="brand-logo" alt="logo" />
         <span class="brand-name">Wisdom Hub</span>
       </div>
 
@@ -49,8 +49,8 @@
           </div>
           <template #dropdown>
             <el-dropdown-menu class="setting-dropdown">
+              <el-dropdown-item icon="Refresh">语言切换 (中/日/英)</el-dropdown-item>
               <el-dropdown-item icon="User" @click="$router.push('/profile')">账号信息修改</el-dropdown-item>
-              <el-dropdown-item icon="SwitchButton" @click="handleLogout">退出登录</el-dropdown-item>
               <el-dropdown-item divided icon="Warning" style="color: #F56C6C" @click="handleDeactivate">
                 注销账号
               </el-dropdown-item>
@@ -80,97 +80,25 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessageBox, ElMessage } from 'element-plus'
-import request from '@/utils/request'
+import { useRoute } from 'vue-router'
 import { 
   House, Compass, Search, CollectionTag, 
   Plus, Setting, User, Refresh, Warning 
 } from '@element-plus/icons-vue'
-import { SwitchButton } from '@element-plus/icons-vue' // 记得导入图标
 
 const route = useRoute()
-const router = useRouter()
-
-// 响应式数据
 const userAccountId = ref(localStorage.getItem('accountId') || '')
 const userAvatar = ref(localStorage.getItem('avatarUrl') || '')
 
-// 页面标题映射
 const currentPathName = computed(() => {
   const titles = {
     '/garden': '我的花园',
     '/explore': '探索广场',
     '/search': '全局搜索',
     '/bookmarks': '个人收藏',
-    '/profile': '账号设置',
-    '/post/create': '发布新动态'
+    '/profile': '账号设置'
   }
   return titles[route.path] || 'Wisdom Hub'
-})
-
-
-const handleLogout = () => {
-  // 1. 清空本地存储的所有用户信息
-  localStorage.clear()
-  
-  // 2. 提示退出成功
-  ElMessage.success('已安全退出智慧花园')
-  
-  // 3. 强制跳转回登录页
-  router.push('/login')
-}
-
-// --- 新增业务逻辑 ---
-
-// 1. 注销账号逻辑 (对接后端逻辑注销)
-const handleDeactivate = () => {
-  ElMessageBox.confirm(
-    '注销后，您的账号将进行匿名化处理，此操作不可撤销。确定要离开 Wisdom Hub 吗？',
-    '安全确认',
-    {
-      confirmButtonText: '确定注销',
-      cancelButtonText: '我再想想',
-      type: 'warning',
-      buttonSize: 'default',
-      confirmButtonClass: 'el-button--danger'
-    }
-  ).then(async () => {
-    try {
-      // 调用后端注销接口 (status -> 2, email -> anonymized)
-      await request.post('/user/deactivate')
-      
-      // 清理前端缓存
-      localStorage.clear()
-      
-      ElMessage({
-        type: 'success',
-        message: '账号已注销，期待在未来的花园里与你重逢。',
-        duration: 3000
-      })
-      
-      // 跳回登录页
-      router.push('/login')
-    } catch (err) {
-      console.error('注销请求失败:', err)
-    }
-  }).catch(() => {
-    // 用户取消操作，无需处理
-  })
-}
-
-// 2. 语言切换提示
-const handleLangChange = () => {
-  ElMessage.info({
-    message: '多语言模式 (中/日/英) 正在紧急灌溉中，敬请期待！',
-    showClose: true
-  })
-}
-
-// 挂载时再次确认数据（防止存储延迟）
-onMounted(() => {
-  userAccountId.value = localStorage.getItem('accountId') || 'Unknown'
-  userAvatar.value = localStorage.getItem('avatarUrl') || ''
 })
 </script>
 

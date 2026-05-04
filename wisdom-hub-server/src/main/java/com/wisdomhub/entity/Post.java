@@ -4,63 +4,36 @@ import java.time.LocalDateTime;
 import java.util.Objects;
 
 /**
- * 文章/碎碎念实体类
+ * 帖子实体类（扩展点赞、收藏统计）
  */
 public class Post {
     
-    /**
-     * 主键ID
-     */
     private Long id;
-    
-    /**
-     * 标题（长文可选，碎碎念可为空）
-     */
     private String title;
-    
-    /**
-     * 内容（必填）
-     */
     private String content;
-    
-    /**
-     * 封面图（可选）
-     */
-    private String coverImage;
-    
-    /**
-     * 视频链接（B站等，可选）
-     */
     private String videoUrl;
-    
-    /**
-     * 类型：0-长文，1-碎碎念
-     */
     private Integer type;
+    private Integer status;
+    private String authorId;
+    private String auditRemark;
+    private String ipAddress;
     
     /**
-     * 可见性：0-公开，1-私密
+     * 点赞数
      */
-    private Integer visibility;
+    private Integer likeCount;
     
     /**
-     * 创建人邮箱（用于“我的花园”查询）
+     * 收藏数
      */
-    private String authorEmail;
+    private Integer favoriteCount;
     
     /**
-     * 创建人ID（用于关联/审计）
+     * 浏览次数
      */
-    private Long authorId;
+    private Integer viewCount;
     
-    /**
-     * 创建时间
-     */
     private LocalDateTime createTime;
-    
-    /**
-     * 更新时间
-     */
     private LocalDateTime updateTime;
     
     // 无参构造
@@ -68,23 +41,31 @@ public class Post {
     }
     
     // 全参构造
-    public Post(Long id, String title, String content, String coverImage, String videoUrl,
-                Integer type, Integer visibility, String authorEmail, Long authorId,
+    public Post(Long id, String title, String content, String videoUrl, Integer type,
+                Integer status, String authorId, String auditRemark, String ipAddress,
+                Integer likeCount, Integer favoriteCount, Integer viewCount,
                 LocalDateTime createTime, LocalDateTime updateTime) {
         this.id = id;
         this.title = title;
         this.content = content;
-        this.coverImage = coverImage;
         this.videoUrl = videoUrl;
         this.type = type;
-        this.visibility = visibility;
-        this.authorEmail = authorEmail;
+        this.status = status;
         this.authorId = authorId;
+        this.auditRemark = auditRemark;
+        this.ipAddress = ipAddress;
+        this.likeCount = likeCount;
+        this.favoriteCount = favoriteCount;
+        this.viewCount = viewCount;
         this.createTime = createTime;
         this.updateTime = updateTime;
     }
     
-    // Getter / Setter
+    public static PostBuilder builder() {
+        return new PostBuilder();
+    }
+    
+    // Getter/Setter
     public Long getId() {
         return id;
     }
@@ -109,14 +90,6 @@ public class Post {
         this.content = content;
     }
     
-    public String getCoverImage() {
-        return coverImage;
-    }
-    
-    public void setCoverImage(String coverImage) {
-        this.coverImage = coverImage;
-    }
-    
     public String getVideoUrl() {
         return videoUrl;
     }
@@ -133,28 +106,60 @@ public class Post {
         this.type = type;
     }
     
-    public Integer getVisibility() {
-        return visibility;
+    public Integer getStatus() {
+        return status;
     }
     
-    public void setVisibility(Integer visibility) {
-        this.visibility = visibility;
+    public void setStatus(Integer status) {
+        this.status = status;
     }
     
-    public String getAuthorEmail() {
-        return authorEmail;
-    }
-    
-    public void setAuthorEmail(String authorEmail) {
-        this.authorEmail = authorEmail;
-    }
-    
-    public Long getAuthorId() {
+    public String getAuthorId() {
         return authorId;
     }
     
-    public void setAuthorId(Long authorId) {
+    public void setAuthorId(String authorId) {
         this.authorId = authorId;
+    }
+    
+    public String getAuditRemark() {
+        return auditRemark;
+    }
+    
+    public void setAuditRemark(String auditRemark) {
+        this.auditRemark = auditRemark;
+    }
+    
+    public String getIpAddress() {
+        return ipAddress;
+    }
+    
+    public void setIpAddress(String ipAddress) {
+        this.ipAddress = ipAddress;
+    }
+    
+    public Integer getLikeCount() {
+        return likeCount;
+    }
+    
+    public void setLikeCount(Integer likeCount) {
+        this.likeCount = likeCount;
+    }
+    
+    public Integer getFavoriteCount() {
+        return favoriteCount;
+    }
+    
+    public void setFavoriteCount(Integer favoriteCount) {
+        this.favoriteCount = favoriteCount;
+    }
+    
+    public Integer getViewCount() {
+        return viewCount;
+    }
+    
+    public void setViewCount(Integer viewCount) {
+        this.viewCount = viewCount;
     }
     
     public LocalDateTime getCreateTime() {
@@ -178,15 +183,9 @@ public class Post {
         return "Post{" +
                 "id=" + id +
                 ", title='" + title + '\'' +
-                ", content='" + content + '\'' +
-                ", coverImage='" + coverImage + '\'' +
-                ", videoUrl='" + videoUrl + '\'' +
-                ", type=" + type +
-                ", visibility=" + visibility +
-                ", authorEmail='" + authorEmail + '\'' +
-                ", authorId=" + authorId +
-                ", createTime=" + createTime +
-                ", updateTime=" + updateTime +
+                ", likeCount=" + likeCount +
+                ", favoriteCount=" + favoriteCount +
+                ", viewCount=" + viewCount +
                 '}';
     }
     
@@ -201,5 +200,104 @@ public class Post {
     @Override
     public int hashCode() {
         return Objects.hash(id);
+    }
+    
+    /**
+     * Builder 内部类
+     */
+    public static class PostBuilder {
+        private Long id;
+        private String title;
+        private String content;
+        private String videoUrl;
+        private Integer type;
+        private Integer status;
+        private String authorId;
+        private String auditRemark;
+        private String ipAddress;
+        private Integer likeCount;
+        private Integer favoriteCount;
+        private Integer viewCount;
+        private LocalDateTime createTime;
+        private LocalDateTime updateTime;
+        
+        PostBuilder() {
+        }
+        
+        public PostBuilder id(Long id) {
+            this.id = id;
+            return this;
+        }
+        
+        public PostBuilder title(String title) {
+            this.title = title;
+            return this;
+        }
+        
+        public PostBuilder content(String content) {
+            this.content = content;
+            return this;
+        }
+        
+        public PostBuilder videoUrl(String videoUrl) {
+            this.videoUrl = videoUrl;
+            return this;
+        }
+        
+        public PostBuilder type(Integer type) {
+            this.type = type;
+            return this;
+        }
+        
+        public PostBuilder status(Integer status) {
+            this.status = status;
+            return this;
+        }
+        
+        public PostBuilder authorId(String authorId) {
+            this.authorId = authorId;
+            return this;
+        }
+        
+        public PostBuilder auditRemark(String auditRemark) {
+            this.auditRemark = auditRemark;
+            return this;
+        }
+        
+        public PostBuilder ipAddress(String ipAddress) {
+            this.ipAddress = ipAddress;
+            return this;
+        }
+        
+        public PostBuilder likeCount(Integer likeCount) {
+            this.likeCount = likeCount;
+            return this;
+        }
+        
+        public PostBuilder favoriteCount(Integer favoriteCount) {
+            this.favoriteCount = favoriteCount;
+            return this;
+        }
+        
+        public PostBuilder viewCount(Integer viewCount) {
+            this.viewCount = viewCount;
+            return this;
+        }
+        
+        public PostBuilder createTime(LocalDateTime createTime) {
+            this.createTime = createTime;
+            return this;
+        }
+        
+        public PostBuilder updateTime(LocalDateTime updateTime) {
+            this.updateTime = updateTime;
+            return this;
+        }
+        
+        public Post build() {
+            return new Post(id, title, content, videoUrl, type, status, authorId,
+                    auditRemark, ipAddress, likeCount, favoriteCount, viewCount,
+                    createTime, updateTime);
+        }
     }
 }

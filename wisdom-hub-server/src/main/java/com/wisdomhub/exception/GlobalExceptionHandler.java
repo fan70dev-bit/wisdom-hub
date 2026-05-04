@@ -70,4 +70,14 @@ public class GlobalExceptionHandler {
         response.put("timestamp", System.currentTimeMillis());
         return response;
     }
+
+    /**
+     * 禁止访问异常处理（403）
+     */
+    @ExceptionHandler(ForbiddenException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public Map<String, Object> handleForbiddenException(ForbiddenException e) {
+        log.warn("禁止访问: {}", e.getMessage());
+        return buildErrorResponse(403, e.getMessage());
+    }
 }

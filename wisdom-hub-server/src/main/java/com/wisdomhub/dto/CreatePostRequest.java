@@ -1,29 +1,24 @@
 package com.wisdomhub.dto;
 
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotBlank;
 
 /**
- * 修改帖子请求（去封面图版本）
+ * 创建帖子请求（去封面图版本）
  */
-public class UpdatePostRequest {
-    
-    @NotNull(message = "帖子 ID 不能为空")
-    private Long id;
+public class CreatePostRequest {
     
     private String title;
+    
+    @NotBlank(message = "内容不能为空")
     private String content;
+    
     private String videoUrl;
+    
+    private Integer type;
+    
     private Boolean isPrivate;
     
-    public UpdatePostRequest() {
-    }
-    
-    public Long getId() {
-        return id;
-    }
-    
-    public void setId(Long id) {
-        this.id = id;
+    public CreatePostRequest() {
     }
     
     public String getTitle() {
@@ -50,6 +45,14 @@ public class UpdatePostRequest {
         this.videoUrl = videoUrl;
     }
     
+    public Integer getType() {
+        return type;
+    }
+    
+    public void setType(Integer type) {
+        this.type = type;
+    }
+    
     public Boolean getIsPrivate() {
         return isPrivate;
     }
@@ -60,11 +63,11 @@ public class UpdatePostRequest {
     
     @Override
     public String toString() {
-        return "UpdatePostRequest{" +
-                "id=" + id +
-                ", title='" + title + '\'' +
+        return "CreatePostRequest{" +
+                "title='" + title + '\'' +
                 ", content='" + content + '\'' +
                 ", videoUrl='" + videoUrl + '\'' +
+                ", type=" + type +
                 ", isPrivate=" + isPrivate +
                 '}';
     }

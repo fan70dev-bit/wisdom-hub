@@ -6,12 +6,15 @@
         <id property="id" column="id"/>
         <result property="title" column="title"/>
         <result property="content" column="content"/>
-        <result property="coverImage" column="cover_image"/>
         <result property="videoUrl" column="video_url"/>
         <result property="type" column="type"/>
-        <result property="visibility" column="visibility"/>
-        <result property="authorEmail" column="author_email"/>
+        <result property="status" column="status"/>
         <result property="authorId" column="author_id"/>
+        <result property="auditRemark" column="audit_remark"/>
+        <result property="ipAddress" column="ip_address"/>
+        <result property="likeCount" column="like_count"/>
+        <result property="favoriteCount" column="favorite_count"/>
+        <result property="viewCount" column="view_count"/>
         <result property="createTime" column="create_time"/>
         <result property="updateTime" column="update_time"/>
     </resultMap>
@@ -19,11 +22,13 @@
     <!-- 创建 -->
     <insert id="insert" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO tb_post (
-            title, content, cover_image, video_url, type, visibility,
-            author_email, author_id, create_time, update_time
+            title, content, video_url, type, status, author_id,
+            audit_remark, ip_address, like_count, favorite_count, view_count,
+            create_time, update_time
         ) VALUES (
-                     #{title}, #{content}, #{coverImage}, #{videoUrl}, #{type}, #{visibility},
-                     #{authorEmail}, #{authorId}, #{createTime}, #{updateTime}
+                     #{title}, #{content}, #{videoUrl}, #{type}, #{status}, #{authorId},
+                     #{auditRemark}, #{ipAddress}, 0, 0, 0,
+                     #{createTime}, #{updateTime}
                  )
     </insert>
 
@@ -33,23 +38,23 @@
     </select>
 
     <!-- 我的花园 -->
-    <select id="findGardenByAuthorEmail" resultMap="PostResultMap">
+    <select id="findGardenByAuthorId" resultMap="PostResultMap">
         SELECT * FROM tb_post
-        WHERE author_email = #{authorEmail}
-        <if test="includePrivate == false">
-            AND visibility = 0
-        </if>
+        WHERE author_id = #{authorId}
+          AND status != 4
         ORDER BY create_time DESC
     </select>
 
-    <!-- 广场（仅公开） -->
+    <!-- 广场 -->
     <select id="findPlaza" resultMap="PostResultMap">
-        SELECT * FROM tb_post
-        WHERE visibility = 0
-        ORDER BY create_time DESC
+        SELECT p.* FROM tb_post p
+                            INNER JOIN tb_user u ON p.author_id = u.account_id
+        WHERE p.status = 0
+          AND u.status = 0
+        ORDER BY p.create_time DESC
     </select>
 
-    <!-- 动态更新（仅更新非空字段） -->
+    <!-- 动态更新 -->
     <update id="update">
         UPDATE tb_post
         <set>
@@ -59,14 +64,14 @@
             <if test="content != null and content != ''">
                 content = #{content},
             </if>
-            <if test="coverImage != null and coverImage != ''">
-                cover_image = #{coverImage},
-            </if>
             <if test="videoUrl != null and videoUrl != ''">
                 video_url = #{videoUrl},
             </if>
-            <if test="visibility != null">
-                visibility = #{visibility},
+            <if test="status != null">
+                status = #{status},
+            </if>
+            <if test="auditRemark != null">
+                audit_remark = #{auditRemark},
             </if>
             <if test="updateTime != null">
                 update_time = #{updateTime},
@@ -75,9 +80,57 @@
         WHERE id = #{id}
     </update>
 
-    <!-- 删除 -->
-    <delete id="deleteById">
-        DELETE FROM tb_post WHERE id = #{id}
-    </delete>
+    <!-- 逻辑删除 -->
+    <update id="logicDelete">
+        UPDATE tb_post
+        SET status = 4,
+            update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <!-- 增加点赞数 -->
+    <update id="incrementLikeCount">
+        UPDATE tb_post
+        SET like_count = like_count + 1
+        WHERE id = #{id}
+    </update>
+
+    <!-- 减少点赞数 -->
+    <update id="decrementLikeCount">
+        UPDATE tb_post
+        SET like_count = GREATEST(like_count - 1, 0)
+        WHERE id = #{id}
+    </update>
+
+    <!-- 增加收藏数 -->
+    <update id="incrementFavoriteCount">
+        UPDATE tb_post
+        SET favorite_count = favorite_count + 1
+        WHERE id = #{id}
+    </update>
+
+    <!-- 减少收藏数 -->
+    <update id="decrementFavoriteCount">
+        UPDATE tb_post
+        SET favorite_count = GREATEST(favorite_count - 1, 0)
+        WHERE id = #{id}
+    </update>
+
+    <!-- 增加浏览次数 -->
+    <update id="incrementViewCount">
+        UPDATE tb_post
+        SET view_count = view_count + 1
+        WHERE id = #{id}
+    </update>
+
+    <!-- 批量查询 -->
+    <select id="findByIds" resultMap="PostResultMap">
+        SELECT * FROM tb_post
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        ORDER BY create_time DESC
+    </select>
 
 </mapper>

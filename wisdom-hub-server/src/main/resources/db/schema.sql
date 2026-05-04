@@ -2,16 +2,103 @@ CREATE DATABASE wisdom_hub CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 USE wisdom_hub;
 
--- 用户表
-CREATE TABLE `tb_user` (
+CREATE TABLE IF NOT EXISTS `tb_user` (
+                                         `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+                                         `account_id` VARCHAR(10) UNIQUE COMMENT '账号ID（8-10位随机数字）',
+    `email` VARCHAR(100) NOT NULL COMMENT '邮箱（登录凭证）',
+    `username` VARCHAR(50) NOT NULL DEFAULT 'Wisdom用户' COMMENT '显示名称',
+    `nickname` VARCHAR(50) NULL COMMENT '昵称（兼容旧版）',
+    `avatar_url` VARCHAR(500) DEFAULT 'https://java-test-with-ai.oss-cn-beijing.aliyuncs.com/assets/default-croco.png' COMMENT '头像地址',
+    `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态：0-正常，1-临时封禁，2-已注销',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `last_login_time` DATETIME NULL COMMENT '最后登录时间',
+    `last_login_ip` VARCHAR(50) NULL COMMENT '最后登录IP',
+    `last_profile_update` DATETIME NULL COMMENT '上次修改资料时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_email` (`email`),
+    UNIQUE KEY `uk_account_id` (`account_id`),
+    KEY `idx_status` (`status`),
+    KEY `idx_create_time` (`create_time`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
+
+USE wisdom_hub;
+
+CREATE TABLE `tb_post` (
                            `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-                           `email` VARCHAR(100) NOT NULL COMMENT '邮箱',
-                           `nickname` VARCHAR(50) NOT NULL COMMENT '昵称',
-                           `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态：0-正常，1-禁用',
+                           `title` VARCHAR(200) NULL COMMENT '标题（长文可选）',
+                           `content` TEXT NOT NULL COMMENT '内容',
+                           `cover_image` VARCHAR(500) NULL COMMENT '封面图',
+                           `video_url` VARCHAR(500) NULL COMMENT '视频链接（B站等）',
+                           `type` TINYINT NOT NULL DEFAULT 1 COMMENT '类型：0-长文，1-碎碎念',
+                           `visibility` TINYINT NOT NULL DEFAULT 0 COMMENT '可见性：0-公开，1-私密',
+                           `author_email` VARCHAR(100) NOT NULL COMMENT '创建人邮箱',
+                           `author_id` BIGINT NOT NULL COMMENT '创建人ID',
                            `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
-                           `last_login_time` DATETIME NULL COMMENT '最后登录时间',
-                           `last_login_ip` VARCHAR(50) NULL COMMENT '最后登录IP',
+                           `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
                            PRIMARY KEY (`id`),
-                           UNIQUE KEY `uk_email` (`email`),
+                           KEY `idx_author_email` (`author_email`),
+                           KEY `idx_type_visibility` (`type`, `visibility`),
                            KEY `idx_create_time` (`create_time`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='用户表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文章/碎碎念表';
+
+-- 创建新表（去封面图版本）
+CREATE TABLE `tb_post` (
+                           `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+                           `title` VARCHAR(200) NULL COMMENT '标题（长文可选）',
+                           `content` TEXT NOT NULL COMMENT '内容（支持Markdown插入图片URL）',
+                           `video_url` VARCHAR(500) NULL COMMENT '视频链接（BV号）',
+                           `type` TINYINT NOT NULL DEFAULT 1 COMMENT '类型：0-长文，1-碎碎念',
+                           `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态：0-公开，1-私密，2-待审核，3-违规封禁，4-用户已删除',
+                           `author_id` VARCHAR(10) NOT NULL COMMENT '作者账号ID（关联 tb_user.account_id）',
+                           `audit_remark` VARCHAR(500) NULL COMMENT '审核意见或封禁原因',
+                           `ip_address` VARCHAR(50) NULL COMMENT '发帖IP地址',
+                           `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                           `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+                           PRIMARY KEY (`id`),
+                           KEY `idx_author_id` (`author_id`),
+                           KEY `idx_status` (`status`),
+                           KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='文章/碎碎念表（去封面图版本）';
+
+-- 为 tb_post 表添加点赞数和收藏数字段
+ALTER TABLE tb_post
+    ADD COLUMN `like_count` INT NOT NULL DEFAULT 0 COMMENT '点赞数',
+    ADD COLUMN `favorite_count` INT NOT NULL DEFAULT 0 COMMENT '收藏数',
+    ADD COLUMN `view_count` INT NOT NULL DEFAULT 0 COMMENT '浏览次数';
+
+-- 添加索引
+ALTER TABLE tb_post ADD INDEX `idx_like_count` (`like_count`);
+ALTER TABLE tb_post ADD INDEX `idx_favorite_count` (`favorite_count`);
+
+CREATE TABLE `tb_post_like` (
+                                `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+                                `post_id` BIGINT NOT NULL COMMENT '帖子ID',
+                                `user_id` VARCHAR(10) NOT NULL COMMENT '用户账号ID（关联 tb_user.account_id）',
+                                `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '点赞时间',
+                                PRIMARY KEY (`id`),
+                                UNIQUE KEY `uk_post_user` (`post_id`, `user_id`),
+                                KEY `idx_post_id` (`post_id`),
+                                KEY `idx_user_id` (`user_id`),
+                                KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='帖子点赞记录表';
+
+CREATE TABLE `tb_post_favorite` (
+                                    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+                                    `post_id` BIGINT NOT NULL COMMENT '帖子ID',
+                                    `user_id` VARCHAR(10) NOT NULL COMMENT '用户账号ID（关联 tb_user.account_id）',
+                                    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '收藏时间',
+                                    PRIMARY KEY (`id`),
+                                    UNIQUE KEY `uk_post_user` (`post_id`, `user_id`),
+                                    KEY `idx_post_id` (`post_id`),
+                                    KEY `idx_user_id` (`user_id`),
+                                    KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='帖子收藏记录表';
+
+-- 删除用户表
+DROP TABLE IF EXISTS tb_user;
+
+-- 删除帖子表
+DROP TABLE IF EXISTS tb_post;
+
+-- 删除评论表
+DROP TABLE IF EXISTS tb_comment;

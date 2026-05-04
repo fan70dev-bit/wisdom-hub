@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.wisdomhub.mapper.UserMapper">
+
+    <resultMap id="UserResultMap" type="com.wisdomhub.entity.User">
+        <id property="id" column="id"/>
+        <result property="accountId" column="account_id"/>
+        <result property="email" column="email"/>
+        <result property="username" column="username"/>
+        <result property="nickname" column="nickname"/>
+        <result property="avatarUrl" column="avatar_url"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="lastLoginTime" column="last_login_time"/>
+        <result property="lastLoginIp" column="last_login_ip"/>
+        <result property="lastProfileUpdate" column="last_profile_update"/>
+    </resultMap>
+
+    <!-- 根据邮箱查询用户 -->
+    <select id="findByEmail" resultMap="UserResultMap">
+        SELECT * FROM tb_user WHERE email = #{email}
+    </select>
+
+    <!-- 根据账号 ID 查询用户 -->
+    <select id="findByAccountId" resultMap="UserResultMap">
+        SELECT * FROM tb_user WHERE account_id = #{accountId}
+    </select>
+
+    <!-- 创建新用户 -->
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO tb_user (
+            account_id, email, username, nickname, avatar_url, status,
+            create_time, last_login_time, last_login_ip
+        ) VALUES (
+                     #{accountId}, #{email}, #{username}, #{nickname}, #{avatarUrl}, #{status},
+                     #{createTime}, #{lastLoginTime}, #{lastLoginIp}
+                 )
+    </insert>
+
+    <!-- 更新最后登录信息 -->
+    <update id="updateLastLogin">
+        UPDATE tb_user
+        SET last_login_time = #{lastLoginTime},
+            last_login_ip = #{lastLoginIp}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新用户资料 -->
+    <update id="updateProfile">
+        UPDATE tb_user
+        SET username = #{username},
+            avatar_url = #{avatarUrl},
+            last_profile_update = #{lastProfileUpdate}
+        WHERE id = #{id}
+    </update>
+
+    <!-- 账号注销（数据匿名化） -->
+    <update id="deactivate">
+        UPDATE tb_user
+        SET email = #{email},
+            username = #{username},
+            status = 2,
+            avatar_url = 'https://java-test-with-ai.oss-cn-beijing.aliyuncs.com/assets/default-croco.png'
+        WHERE id = #{id}
+    </update>
+
+</mapper>

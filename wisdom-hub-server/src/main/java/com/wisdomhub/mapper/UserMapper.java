@@ -1,32 +1,44 @@
 package com.wisdomhub.mapper;
 
 import com.wisdomhub.entity.User;
-import org.apache.ibatis.annotations.*;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 /**
  * 用户数据访问层
  */
 @Mapper
 public interface UserMapper {
-
+    
     /**
      * 根据邮箱查询用户
      */
-    @Select("SELECT * FROM tb_user WHERE email = #{email}")
     User findByEmail(@Param("email") String email);
-
+    
+    /**
+     * 根据账号 ID 查询用户
+     */
+    User findByAccountId(@Param("accountId") String accountId);
+    
     /**
      * 创建新用户
      */
-    @Insert("INSERT INTO tb_user (email, nickname, status, create_time, last_login_time, last_login_ip) " +
-            "VALUES (#{email}, #{nickname}, #{status}, #{createTime}, #{lastLoginTime}, #{lastLoginIp})")
-    @Options(useGeneratedKeys = true, keyProperty = "id")
     int insert(User user);
-
+    
     /**
      * 更新最后登录信息
      */
-    @Update("UPDATE tb_user SET last_login_time = #{lastLoginTime}, last_login_ip = #{lastLoginIp} " +
-            "WHERE id = #{id}")
     int updateLastLogin(User user);
+    
+    /**
+     * 更新用户资料（用户名、头像、更新时间）
+     */
+    int updateProfile(User user);
+    
+    /**
+     * 账号注销（数据匿名化）
+     */
+    int deactivate(@Param("id") Long id, 
+                   @Param("email") String anonymizedEmail,
+                   @Param("username") String anonymizedUsername);
 }
