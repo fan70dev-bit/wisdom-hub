@@ -94,6 +94,23 @@ CREATE TABLE `tb_post_favorite` (
                                     KEY `idx_create_time` (`create_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='帖子收藏记录表';
 
+CREATE TABLE `tb_comment` (
+                              `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+                              `post_id` BIGINT NOT NULL COMMENT '帖子ID',
+                              `user_id` VARCHAR(10) NOT NULL COMMENT '评论者账号ID（关联 tb_user.account_id）',
+                              `content` TEXT NOT NULL COMMENT '评论内容',
+                              `parent_id` BIGINT DEFAULT 0 COMMENT '父评论ID（0 表示顶级评论）',
+                              `reply_to_user_id` VARCHAR(10) DEFAULT NULL COMMENT '回复目标用户ID（用于显示"回复@某人"）',
+                              `status` TINYINT NOT NULL DEFAULT 0 COMMENT '状态：0-正常，1-已删除',
+                              `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+                              PRIMARY KEY (`id`),
+                              KEY `idx_post_id` (`post_id`),
+                              KEY `idx_parent_id` (`parent_id`),
+                              KEY `idx_user_id` (`user_id`),
+                              KEY `idx_status` (`status`),
+                              KEY `idx_create_time` (`create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='评论表（支持无限级嵌套）';
+
 -- 删除用户表
 DROP TABLE IF EXISTS tb_user;
 
