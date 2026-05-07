@@ -147,11 +147,31 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Picture, Plus, Position } from '@element-plus/icons-vue'
-import { marked } from 'marked'
+import * as marked from 'marked';
+import hljs from 'highlight.js'
+import 'highlight.js/styles/github.css' 
 import request from '@/utils/request'
 
 // 路由
 const router = useRouter()
+
+
+marked.setOptions({
+  highlight: function (code, lang) {
+    // 关键修复：强制将 code 转为字符串，防止 replace 报错
+    const safeCode = String(code || ''); 
+    
+    if (lang && hljs.getLanguage(lang)) {
+      try {
+        return hljs.highlight(safeCode, { language: lang }).value;
+      } catch (__ ) {}
+    }
+    
+    // 同样使用转换后的字符串
+    return hljs.highlightAuto(safeCode).value; 
+  },
+  breaks: true
+});
 
 // 表单状态
 const formRef = ref(null)
@@ -176,9 +196,26 @@ const visibilitySwitch = ref(true) // true 公开(0)，false 私密(1)
 const syncStatusFromSwitch = () => {
   form.status = visibilitySwitch.value ? 0 : 1
 }
+
 onMounted(() => {
-  syncStatusFromSwitch()
-})
+  syncStatusFromSwitch();
+  // 删除了 window.copyCode 全局函数，不再折腾复制逻辑
+});
+
+// Markdown 预览内容
+const markdownPreview = computed(() => {
+  // 确保有内容且是字符串
+  const content = String(contentLong.value || '').trim();
+  
+  if (!content) return '<div class="empty-preview">预览区</div>';
+  
+  try {
+    return marked.parse(content);
+  } catch (e) {
+    console.error("Marked 渲染详细错误:", e);
+    return `<div class="empty-preview">解析失败: 内容格式错误</div>`;
+  }
+});
 
 // 类型切换时清理
 const onTypeChange = () => {
@@ -202,16 +239,6 @@ const rules = computed(() => {
     }
   }
   return {}
-})
-
-// Markdown 实时预览
-const markdownPreview = computed(() => {
-  if (!contentLong.value) return '<div class="empty-preview">预览区</div>'
-  try {
-    return marked.parse(contentLong.value)
-  } catch (e) {
-    return '<div class="empty-preview">Markdown 解析失败</div>'
-  }
 })
 
 // 图片上传校验
@@ -245,6 +272,8 @@ const onImageUploadSuccess = (response) => {
 const onImageUploadError = () => {
   ElMessage.error('图片上传失败，请稍后重试')
 }
+
+
 
 // 碎碎念：九宫格图片上传成功
 const onMomoImageUploadSuccess = (response, file, fileList) => {
@@ -371,14 +400,12 @@ const onSubmit = async () => {
 }
 
 .post-create-wrap {
-  /* 定义变量 */
   --cream-green: #8cb06b;
   --deep-green: #4a5d23;
   --cream-bg: #f9fbf6;
   --soft-shadow: 0 6px 20px rgba(74, 93, 35, 0.12);
   --card-radius: 12px;
 
-  /* 使用变量 */
   background: var(--cream-bg);
   min-height: calc(100vh - 80px);
   padding: 24px;
@@ -460,7 +487,7 @@ const onSubmit = async () => {
   box-shadow: 0 0 0 3px rgba(140, 176, 107, 0.25);
 }
 
-/* 预览区 */
+/* 预览区基础样式 */
 .preview {
   height: 100%;
   overflow: auto;
@@ -470,6 +497,31 @@ const onSubmit = async () => {
   background: #fbfdf8;
   color: #2f3e2f;
   line-height: 1.8;
+}
+
+/* 简洁的代码块方框样式 */
+.preview :deep(pre) {
+  background-color: #f6f8fa; /* 浅灰色背景 */
+  padding: 16px;
+  border-radius: 8px;
+  overflow: auto;
+  border: 1px solid #dbe7cf;
+  margin: 10px 0;
+  line-height: 1.45;
+}
+
+.preview :deep(code) {
+  font-family: 'Fira Code', 'Consolas', monospace;
+  font-size: 0.9em;
+  background-color: rgba(175, 184, 193, 0.2);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+}
+
+/* 确保 pre 里的 code 不要重复背景 */
+.preview :deep(pre code) {
+  background-color: transparent;
+  padding: 0;
 }
 
 /* 预览区滚动条美观 */
