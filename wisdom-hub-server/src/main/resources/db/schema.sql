@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS `tb_comment` (
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='评论表（支持无限级嵌套）';
 
 -- 删除用户表
-DROP TABLE IF EXISTS tb_user;
+DROP TABLE IF EXISTS tb_user;3429709
 
 -- 删除帖子表
 DROP TABLE IF EXISTS tb_post;

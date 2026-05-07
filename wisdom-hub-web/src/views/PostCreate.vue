@@ -328,7 +328,7 @@ const onSubmit = async () => {
     title: form.type === 0 ? form.title.trim() : null,
     content: finalContent,
     videoUrl: form.type === 0 ? (form.videoUrl.trim() || null) : null,
-    status: form.status
+    isPrivate: form.status === 1
   }
 
   // 提交
