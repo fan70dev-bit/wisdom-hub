@@ -141,6 +141,9 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Star, CaretTop, CaretBottom } from '@element-plus/icons-vue'
+import { marked } from 'marked'
+import hljs from 'highlight.js'
+import 'highlight.js/styles/github.css' 
 import request from '@/utils/request'
 
 const route = useRoute()
@@ -302,11 +305,26 @@ const formatTime = (timeStr) => {
   return timeStr.replace('T', ' ').substring(0, 16)
 }
 
-const formatContent = (text) => {
-  if (!text) return '暂无内容'
-  let html = text.replace(/\n/g, '<br/>')
-  html = html.replace(/!\[.*?\]\((.*?)\)/g, '<br/><img src="$1" style="max-width: 100%; border-radius: 8px; margin: 10px 0; box-shadow: 0 4px 12px rgba(0,0,0,0.05);" /><br/>')
-  return html
+// 配置 marked
+marked.setOptions({
+  highlight: function (code, lang) {
+    if (lang && hljs.getLanguage(lang)) {
+      return hljs.highlight(code, { language: lang }).value;
+    }
+    return hljs.highlightAuto(code).value;
+  },
+  breaks: true
+});
+
+const formatContent = (content) => {
+  if (!content) return ''
+  try {
+    // 使用 marked 解析 Markdown 字符串
+    return marked.parse(String(content))
+  } catch (e) {
+    console.error("Markdown 解析失败:", e)
+    return content // 解析失败则退回到纯文本展示
+  }
 }
 
 // ======== 互动三连逻辑 ========
@@ -381,6 +399,40 @@ onMounted(() => {
 .post-meta { display: flex; align-items: center; gap: 15px; color: #99A97E; font-size: 13px; }
 .author-tag { color: #8CB06B; border-color: #DBE7CF; background-color: #F2F7EA; }
 .post-body { line-height: 1.8; color: #4A5D23; font-size: 16px; padding: 10px 0 30px 0; }
+
+/* 让图片自适应宽度，防止撑破容器 */
+.content-text :deep(img) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 10px 0;
+  display: block; /* 加上这个可以让图片居中或独占一行更好看 */
+}
+
+/* 代码块灰色方块样式 */
+.content-text :deep(pre) {
+  background-color: #f6f8fa;
+  padding: 16px;
+  border-radius: 8px;
+  overflow: auto;
+  border: 1px solid #dbe7cf;
+  margin: 10px 0;
+  line-height: 1.45;
+}
+
+.content-text :deep(code) {
+  font-family: 'Fira Code', 'Consolas', monospace;
+  background-color: rgba(175, 184, 193, 0.2);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.content-text :deep(pre code) {
+  background-color: transparent;
+  padding: 0;
+  font-size: 1em;
+}
 
 .post-actions {
   display: flex; justify-content: center; align-items: center; gap: 20px;
