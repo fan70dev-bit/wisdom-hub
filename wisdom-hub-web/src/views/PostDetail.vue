@@ -31,7 +31,7 @@
         <el-button :class="['action-btn', isLiked ? 'is-liked' : '']" round @click="toggleLike">
           <el-icon><CaretTop /></el-icon>
           {{ isLiked ? '已赞' : '点赞' }}
-          <span class="count-num" v-if="post.likeCount">{{ post.likeCount + (isLiked ? 1 : 0) }}</span>
+          <span class="count-num" v-if="post.likeCount">{{ post.likeCount }}</span>
         </el-button>
         <el-button :class="['action-btn', isFavorited ? 'is-favorited' : '']" round @click="toggleFavorite">
           <el-icon><Star /></el-icon>
@@ -202,18 +202,36 @@ const fetchPostDetail = async () => {
   try {
     const res = await request.get(`/post/${route.params.id}`)
     let realData = null
+    
     if (res.data && res.data.code === 200) realData = res.data.data
     else if (res.code === 200) realData = res.data
     else if (res.post) realData = res
     else realData = res 
 
     if (realData) {
-      post.value = realData.post || realData 
+      // 🔥 修复：先赋值帖子基本信息
+      post.value = realData.post || realData
+      
+      // 🔥 修复：明确初始化互动状态和数量
       isLiked.value = realData.isLiked || false
       isFavorited.value = realData.isFavorited || false
+      isDisliked.value = realData.isDisliked || false
+      
+      // 🔥 关键：确保 likeCount 正确赋值
+      if (realData.likeCount !== undefined) {
+        post.value.likeCount = realData.likeCount
+      } else if (post.value.likeCount === undefined) {
+        post.value.likeCount = 0  // 兜底默认值
+      }
+      
+      // 同理处理收藏数和评论数（如果需要）
+      if (realData.favoriteCount !== undefined) {
+        post.value.favoriteCount = realData.favoriteCount
+      }
     }
   } catch (err) {
     console.error('获取详情失败', err)
+    ElMessage.error('加载失败，请刷新重试')
   } finally {
     loading.value = false
   }
@@ -328,21 +346,54 @@ const formatContent = (content) => {
 }
 
 // ======== 互动三连逻辑 ========
+const isLiking = ref(false)
+
 const toggleLike = async () => {
+  // 1. 防抖拦截：如果还在请求中，直接忽略点击，防止发两次请求
+  if (isLiking.value) return;
+  isLiking.value = true;
+
   try {
     const res = await request.post(`/post/${route.params.id}/like`)
-    if (res.code === 200 || (res.data && res.data.code === 200)) {
-      isLiked.value = !isLiked.value
-      if (isLiked.value) {
-        isDisliked.value = false
-        if (post.value.likeCount !== undefined) post.value.likeCount++ 
-        ElMessage.success('点赞成功！')
-      } else {
-        if (post.value.likeCount !== undefined) post.value.likeCount--
-        ElMessage.info('已取消点赞')
-      }
+    
+    // 🔍 显微镜：在控制台打印后端到底传回了什么
+    console.log('--- 后端返回的完整响应 ---', res)
+
+    // 2. 暴力剥洋葱提取法：不管拦截器包了几层，一层层扒开
+    let realData = null
+    if (res && res.data && res.data.data) {
+      realData = res.data.data
+    } else if (res && res.data) {
+      realData = res.data
+    } else {
+      realData = res
     }
-  } catch (err) {}
+
+    console.log('--- 提取出的核心数据 ---', realData)
+
+    // 3. 绝对信任提取的数据
+    if (realData && realData.likeCount !== undefined) {
+      post.value.likeCount = realData.likeCount
+      isLiked.value = realData.isLiked
+    } else {
+      console.error('⚠️ 警告：没有从后端数据中提取到 likeCount！')
+    }
+
+    // 4. 弹窗提示
+    if (isLiked.value) {
+      isDisliked.value = false
+      ElMessage.success('点赞成功！')
+    } else {
+      ElMessage.info('已取消点赞')
+    }
+
+  } catch (err) {
+    console.error('点赞请求失败', err)
+    ElMessage.error('网络异常，请稍后重试')
+  } finally {
+    // 5. 事情办完，开锁
+    isLiking.value = false
+  }
 }
 
 const toggleFavorite = async () => {

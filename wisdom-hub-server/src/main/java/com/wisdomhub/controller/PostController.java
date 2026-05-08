@@ -83,9 +83,13 @@ public class PostController {
     @PostMapping("/{id}/like")
     public Result<Map<String, Object>> toggleLike(@PathVariable Long id) {
         boolean isLiked = postLikeService.toggleLike(id);
+
+        // 🔥 查询点赞后的最新总数
+        Post post = postService.getById(id);
         
         Map<String, Object> data = new HashMap<>();
         data.put("isLiked", isLiked);
+        data.put("likeCount", post.getLikeCount());  // 🔥 加上这一行
         data.put("message", isLiked ? "点赞成功" : "已取消点赞");
         
         return Result.success(data);
