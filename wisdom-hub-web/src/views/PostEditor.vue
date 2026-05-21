@@ -29,7 +29,7 @@
         <div class="toolbar-buttons">
           <el-upload
             class="inline-upload"
-            action="http://localhost:8080/api/file/upload"
+            action="/api/file/upload"
             :show-file-list="false"
             :on-success="handleImageSuccess"
             :headers="{ Authorization: 'Bearer ' + getToken() }"
@@ -187,7 +187,7 @@ const previewHtml = computed(() => {
 const loadLocalList = async () => {
   syncLoading.value = true
   try {
-    const res = await axios.get('http://localhost:8080/api/post/garden', {
+    const res = await axios.get('/api/post/garden', {
       headers: { Authorization: `Bearer ${getToken()}` }
     })
     if (res.data.code === 200) localArticles.value = res.data.data
@@ -202,7 +202,7 @@ const handlePublishOrUpdate = async () => {
   try {
     // 根据是否有 editingId 决定调用哪个接口
     const isEdit = !!editingId.value
-    const url = isEdit ? 'http://localhost:8080/api/post/update' : 'http://localhost:8080/api/post/create'
+    const url = isEdit ? '/api/post/update' : '/api/post/create'
     const method = isEdit ? 'put' : 'post'
     
     const payload = {
@@ -231,7 +231,7 @@ const handlePublishOrUpdate = async () => {
 // 新增：删除逻辑
 const handleDelete = async (id) => {
   try {
-    const res = await axios.delete(`http://localhost:8080/api/post/${id}`, {
+    const res = await axios.delete(`/api/post/${id}`, {
       headers: { Authorization: `Bearer ${getToken()}` }
     })
     if (res.data.code === 200) {
