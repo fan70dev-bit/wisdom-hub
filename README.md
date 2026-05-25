@@ -227,7 +227,7 @@ Nginx 用于：
 
 ## Post Editor
 
-![alt text](./wisdom-hub-web/docs/images/image-2.png)
+![alt text](./wisdom-hub-web/docs/images/image-1.png)
 
 ---
 
