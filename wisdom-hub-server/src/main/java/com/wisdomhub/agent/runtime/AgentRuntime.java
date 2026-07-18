@@ -6,6 +6,9 @@ import com.wisdomhub.agent.trace.AgentExecutionTrace;
 import com.wisdomhub.agent.trace.AgentToolCallTrace;
 import com.wisdomhub.agent.trace.AgentTraceContext;
 import com.wisdomhub.context.UserContext;
+import com.wisdomhub.entity.User;
+import com.wisdomhub.exception.UnauthorizedException;
+import com.wisdomhub.mapper.UserMapper;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.ObjectProvider;
 import org.slf4j.Logger;
@@ -32,10 +35,13 @@ public class AgentRuntime {
 
     private final ObjectProvider<ChatClient> chatClientProvider;
     private final AgentAiProperties aiProperties;
+    private final UserMapper userMapper;
 
-    public AgentRuntime(ObjectProvider<ChatClient> chatClientProvider, AgentAiProperties aiProperties) {
+    public AgentRuntime(ObjectProvider<ChatClient> chatClientProvider, AgentAiProperties aiProperties,
+                        UserMapper userMapper) {
         this.chatClientProvider = chatClientProvider;
         this.aiProperties = aiProperties;
+        this.userMapper = userMapper;
     }
 
     /**
@@ -50,21 +56,26 @@ public class AgentRuntime {
     public AgentExecutionResult prepare(AgentChatRequest request) {
         LocalDateTime startTime = LocalDateTime.now();
         AgentExecutionContext context = buildContext(request, startTime);
+        AgentExecutionContextHolder.set(context);
         boolean modelAvailable = chatClientProvider.getIfAvailable() != null;
 
-        String answer = modelAvailable
-                ? "AI 基础设施已就绪，但当前 Milestone 尚未开放聊天执行。"
-                : "AI 模型尚未启用或未配置，应用仍可正常启动。";
+        try {
+            String answer = modelAvailable
+                    ? "AI 基础设施已就绪，但当前 Milestone 尚未开放聊天执行。"
+                    : "AI 模型尚未启用或未配置，应用仍可正常启动。";
 
-        long latencyMs = Duration.between(startTime, LocalDateTime.now()).toMillis();
-        return new AgentExecutionResult(
-                answer,
-                context.getTraceId(),
-                context.getProvider(),
-                context.getModel(),
-                modelAvailable,
-                latencyMs
-        );
+            long latencyMs = Duration.between(startTime, LocalDateTime.now()).toMillis();
+            return new AgentExecutionResult(
+                    answer,
+                    context.getTraceId(),
+                    context.getProvider(),
+                    context.getModel(),
+                    modelAvailable,
+                    latencyMs
+            );
+        } finally {
+            AgentExecutionContextHolder.clear();
+        }
     }
 
     /**
@@ -79,6 +90,7 @@ public class AgentRuntime {
     public AgentExecutionResult chat(AgentChatRequest request) {
         LocalDateTime startTime = LocalDateTime.now();
         AgentExecutionContext context = buildContext(request, startTime);
+        AgentExecutionContextHolder.set(context);
         AgentExecutionTrace trace = AgentTraceContext.start(
                 context.getTraceId(),
                 context.getMessage(),
@@ -120,6 +132,7 @@ public class AgentRuntime {
         } finally {
             finishTrace(trace, startTime, success);
             AgentTraceContext.clear();
+            AgentExecutionContextHolder.clear();
         }
     }
 
@@ -127,14 +140,17 @@ public class AgentRuntime {
      * Builds execution metadata for a future Agent run.
      */
     private AgentExecutionContext buildContext(AgentChatRequest request, LocalDateTime startTime) {
+        User currentUser = loadCurrentUser();
         AgentAiProperties.Provider provider = resolveProvider(request);
         AgentAiProperties.ModelSettings modelSettings = resolveModelSettings(provider);
         String traceId = AgentTraceContext.currentTraceId().orElseGet(() -> UUID.randomUUID().toString());
 
         return new AgentExecutionContext(
                 traceId,
-                UserContext.getUserId(),
-                UserContext.getUserEmail(),
+                currentUser.getId(),
+                currentUser.getEmail(),
+                currentUser.getAccountId(),
+                currentUser.getUsername(),
                 request != null ? request.getMessage() : null,
                 provider.name().toLowerCase(),
                 modelSettings != null ? modelSettings.getModel() : null,
@@ -167,6 +183,25 @@ public class AgentRuntime {
             return aiProperties.getOllama();
         }
         return aiProperties.getDeepseek();
+    }
+
+    /**
+     * Loads the authenticated user created by the existing JWT flow.
+     */
+    private User loadCurrentUser() {
+        Long userId = UserContext.getUserId();
+        String email = UserContext.getUserEmail();
+
+        if (userId == null || !StringUtils.hasText(email)) {
+            throw new UnauthorizedException("请先登录");
+        }
+
+        User user = userMapper.findByEmail(email);
+        if (user == null) {
+            throw new UnauthorizedException("登录用户不存在，请重新登录");
+        }
+
+        return user;
     }
 
     /**

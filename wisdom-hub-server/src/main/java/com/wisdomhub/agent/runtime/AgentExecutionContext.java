@@ -27,6 +27,16 @@ public class AgentExecutionContext {
     private final String userEmail;
 
     /**
+     * Current authenticated user's public account id.
+     */
+    private final String accountId;
+
+    /**
+     * Current authenticated user's display name.
+     */
+    private final String username;
+
+    /**
      * User's natural language message.
      */
     private final String message;
@@ -46,11 +56,13 @@ public class AgentExecutionContext {
      */
     private final LocalDateTime startTime;
 
-    public AgentExecutionContext(String traceId, Long userId, String userEmail, String message,
-                                 String provider, String model, LocalDateTime startTime) {
+    public AgentExecutionContext(String traceId, Long userId, String userEmail, String accountId, String username,
+                                 String message, String provider, String model, LocalDateTime startTime) {
         this.traceId = traceId;
         this.userId = userId;
         this.userEmail = userEmail;
+        this.accountId = accountId;
+        this.username = username;
         this.message = message;
         this.provider = provider;
         this.model = model;
@@ -67,6 +79,14 @@ public class AgentExecutionContext {
 
     public String getUserEmail() {
         return userEmail;
+    }
+
+    public String getAccountId() {
+        return accountId;
+    }
+
+    public String getUsername() {
+        return username;
     }
 
     public String getMessage() {

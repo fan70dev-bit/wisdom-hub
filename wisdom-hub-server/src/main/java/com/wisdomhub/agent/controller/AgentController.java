@@ -4,8 +4,11 @@ import com.wisdomhub.agent.dto.AgentChatRequest;
 import com.wisdomhub.agent.dto.AgentChatResponse;
 import com.wisdomhub.agent.runtime.AgentExecutionResult;
 import com.wisdomhub.agent.runtime.AgentRuntime;
+import com.wisdomhub.context.UserContext;
 import com.wisdomhub.dto.Result;
+import com.wisdomhub.exception.UnauthorizedException;
 import jakarta.validation.Valid;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,6 +41,7 @@ public class AgentController {
      */
     @PostMapping("/chat")
     public Result<AgentChatResponse> chat(@Valid @RequestBody AgentChatRequest request) {
+        ensureAuthenticated();
         AgentExecutionResult result = agentRuntime.chat(request);
         AgentChatResponse response = new AgentChatResponse(
                 result.getAnswer(),
@@ -47,5 +51,14 @@ public class AgentController {
                 result.isModelAvailable()
         );
         return Result.success(response);
+    }
+
+    /**
+     * Requires the existing JWT interceptor to have populated UserContext.
+     */
+    private void ensureAuthenticated() {
+        if (UserContext.getUserId() == null || !StringUtils.hasText(UserContext.getUserEmail())) {
+            throw new UnauthorizedException("请先登录");
+        }
     }
 }
