@@ -13,12 +13,12 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 /**
- * Minimal Agent runtime foundation.
+ * Minimal Agent runtime for chat integration.
  *
- * <p>Milestone 1 keeps the runtime intentionally small: it prepares execution
- * context, checks whether a ChatClient is available, and returns a structured
- * result. No controller, tool calling, database access or remote model call is
- * performed in this module.</p>
+ * <p>Module 2 adds the first model call path. The runtime still does not perform
+ * tool calling, database access or trace persistence. It receives a request,
+ * resolves execution metadata and delegates the user's message to Spring AI's
+ * {@link ChatClient} when one is available.</p>
  */
 @Component
 public class AgentRuntime {
@@ -35,8 +35,7 @@ public class AgentRuntime {
      * Prepares an Agent execution without invoking the model.
      *
      * <p>This method exists so later milestones can plug in a controller and tool
-     * calling without changing the foundation objects. It intentionally does not
-     * call {@link ChatClient#prompt()}.</p>
+     * calling without changing the foundation objects.</p>
      *
      * @param request future chat request
      * @return infrastructure-level execution result
@@ -57,6 +56,47 @@ public class AgentRuntime {
                 context.getProvider(),
                 context.getModel(),
                 modelAvailable,
+                latencyMs
+        );
+    }
+
+    /**
+     * Executes the minimal chat flow.
+     *
+     * <p>This method calls only the configured LLM through Spring AI ChatClient.
+     * It does not call any business service, tool, mapper or database.</p>
+     *
+     * @param request chat request from the future Agent controller
+     * @return model answer and execution metadata
+     */
+    public AgentExecutionResult chat(AgentChatRequest request) {
+        LocalDateTime startTime = LocalDateTime.now();
+        AgentExecutionContext context = buildContext(request, startTime);
+        ChatClient chatClient = chatClientProvider.getIfAvailable();
+
+        if (chatClient == null) {
+            long latencyMs = Duration.between(startTime, LocalDateTime.now()).toMillis();
+            return new AgentExecutionResult(
+                    "AI 模型尚未启用或未配置，请先配置 DeepSeek API 后再尝试。",
+                    context.getTraceId(),
+                    context.getProvider(),
+                    context.getModel(),
+                    false,
+                    latencyMs
+            );
+        }
+
+        String answer = chatClient.prompt(context.getMessage())
+                .call()
+                .content();
+
+        long latencyMs = Duration.between(startTime, LocalDateTime.now()).toMillis();
+        return new AgentExecutionResult(
+                answer,
+                context.getTraceId(),
+                context.getProvider(),
+                context.getModel(),
+                true,
                 latencyMs
         );
     }
