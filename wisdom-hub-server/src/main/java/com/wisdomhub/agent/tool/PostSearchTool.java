@@ -1,5 +1,6 @@
 package com.wisdomhub.agent.tool;
 
+import com.wisdomhub.agent.trace.AgentTraceContext;
 import com.wisdomhub.dto.PageResult;
 import com.wisdomhub.dto.PostVO;
 import com.wisdomhub.service.PostService;
@@ -47,31 +48,48 @@ public class PostSearchTool {
             @ToolParam(description = "Keyword to search in post title or content, for example Redis, Spring AI, MySQL.")
             String keyword) {
 
+        long startNanos = System.nanoTime();
         String normalizedKeyword = normalizeKeyword(keyword);
-        PageResult<PostVO> pageResult = postService.search(normalizedKeyword, DEFAULT_PAGE_NUM, DEFAULT_PAGE_SIZE);
+        boolean success = false;
+        int returnCount = 0;
 
-        List<PostSearchItem> items = new ArrayList<>();
-        if (pageResult.getList() != null) {
-            for (PostVO post : pageResult.getList()) {
-                items.add(new PostSearchItem(
-                        post.getId(),
-                        post.getTitle(),
-                        post.getAuthorName(),
-                        post.getCreateTime(),
-                        buildExcerpt(post.getContent()),
-                        post.getLikeCount(),
-                        post.getFavoriteCount()
-                ));
+        try {
+            PageResult<PostVO> pageResult = postService.search(normalizedKeyword, DEFAULT_PAGE_NUM, DEFAULT_PAGE_SIZE);
+
+            List<PostSearchItem> items = new ArrayList<>();
+            if (pageResult.getList() != null) {
+                for (PostVO post : pageResult.getList()) {
+                    items.add(new PostSearchItem(
+                            post.getId(),
+                            post.getTitle(),
+                            post.getAuthorName(),
+                            post.getCreateTime(),
+                            buildExcerpt(post.getContent()),
+                            post.getLikeCount(),
+                            post.getFavoriteCount()
+                    ));
+                }
             }
-        }
 
-        return new PostSearchResult(
-                normalizedKeyword,
-                pageResult.getTotal(),
-                pageResult.getPageNum(),
-                pageResult.getPageSize(),
-                items
-        );
+            returnCount = items.size();
+            success = true;
+            return new PostSearchResult(
+                    normalizedKeyword,
+                    pageResult.getTotal(),
+                    pageResult.getPageNum(),
+                    pageResult.getPageSize(),
+                    items
+            );
+        } finally {
+            long elapsedMs = (System.nanoTime() - startNanos) / 1_000_000;
+            AgentTraceContext.recordToolCall(
+                    "PostSearchTool.searchPosts",
+                    "keyword=" + normalizedKeyword,
+                    returnCount,
+                    elapsedMs,
+                    success
+            );
+        }
     }
 
     /**

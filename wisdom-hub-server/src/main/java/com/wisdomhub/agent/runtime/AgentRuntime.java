@@ -2,9 +2,14 @@ package com.wisdomhub.agent.runtime;
 
 import com.wisdomhub.agent.config.AgentAiProperties;
 import com.wisdomhub.agent.dto.AgentChatRequest;
+import com.wisdomhub.agent.trace.AgentExecutionTrace;
+import com.wisdomhub.agent.trace.AgentToolCallTrace;
+import com.wisdomhub.agent.trace.AgentTraceContext;
 import com.wisdomhub.context.UserContext;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.beans.factory.ObjectProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -22,6 +27,8 @@ import java.util.UUID;
  */
 @Component
 public class AgentRuntime {
+
+    private static final Logger log = LoggerFactory.getLogger(AgentRuntime.class);
 
     private final ObjectProvider<ChatClient> chatClientProvider;
     private final AgentAiProperties aiProperties;
@@ -72,33 +79,48 @@ public class AgentRuntime {
     public AgentExecutionResult chat(AgentChatRequest request) {
         LocalDateTime startTime = LocalDateTime.now();
         AgentExecutionContext context = buildContext(request, startTime);
+        AgentExecutionTrace trace = AgentTraceContext.start(
+                context.getTraceId(),
+                context.getMessage(),
+                context.getModel(),
+                context.getProvider(),
+                startTime
+        );
         ChatClient chatClient = chatClientProvider.getIfAvailable();
+        boolean success = false;
 
-        if (chatClient == null) {
+        try {
+            if (chatClient == null) {
+                long latencyMs = Duration.between(startTime, LocalDateTime.now()).toMillis();
+                success = true;
+                return new AgentExecutionResult(
+                        "AI 模型尚未启用或未配置，请先配置 DeepSeek API 后再尝试。",
+                        context.getTraceId(),
+                        context.getProvider(),
+                        context.getModel(),
+                        false,
+                        latencyMs
+                );
+            }
+
+            String answer = chatClient.prompt(context.getMessage())
+                    .call()
+                    .content();
+
             long latencyMs = Duration.between(startTime, LocalDateTime.now()).toMillis();
+            success = true;
             return new AgentExecutionResult(
-                    "AI 模型尚未启用或未配置，请先配置 DeepSeek API 后再尝试。",
+                    answer,
                     context.getTraceId(),
                     context.getProvider(),
                     context.getModel(),
-                    false,
+                    true,
                     latencyMs
             );
+        } finally {
+            finishTrace(trace, startTime, success);
+            AgentTraceContext.clear();
         }
-
-        String answer = chatClient.prompt(context.getMessage())
-                .call()
-                .content();
-
-        long latencyMs = Duration.between(startTime, LocalDateTime.now()).toMillis();
-        return new AgentExecutionResult(
-                answer,
-                context.getTraceId(),
-                context.getProvider(),
-                context.getModel(),
-                true,
-                latencyMs
-        );
     }
 
     /**
@@ -107,9 +129,10 @@ public class AgentRuntime {
     private AgentExecutionContext buildContext(AgentChatRequest request, LocalDateTime startTime) {
         AgentAiProperties.Provider provider = resolveProvider(request);
         AgentAiProperties.ModelSettings modelSettings = resolveModelSettings(provider);
+        String traceId = AgentTraceContext.currentTraceId().orElseGet(() -> UUID.randomUUID().toString());
 
         return new AgentExecutionContext(
-                UUID.randomUUID().toString(),
+                traceId,
                 UserContext.getUserId(),
                 UserContext.getUserEmail(),
                 request != null ? request.getMessage() : null,
@@ -144,5 +167,45 @@ public class AgentRuntime {
             return aiProperties.getOllama();
         }
         return aiProperties.getDeepseek();
+    }
+
+    /**
+     * Completes and logs the in-memory trace for one Agent execution.
+     */
+    private void finishTrace(AgentExecutionTrace trace, LocalDateTime startTime, boolean success) {
+        LocalDateTime endTime = LocalDateTime.now();
+        long elapsedMs = Duration.between(startTime, endTime).toMillis();
+        trace.finish(endTime, elapsedMs, success);
+        logTrace(trace);
+    }
+
+    /**
+     * Emits a compact SLF4J trace log for the Agent run.
+     */
+    private void logTrace(AgentExecutionTrace trace) {
+        if (trace.getToolCalls().isEmpty()) {
+            log.info("[Agent Trace] traceId={} provider={} model={} tool=none toolCount=0 elapsed={}ms success={}",
+                    trace.getTraceId(),
+                    trace.getProvider(),
+                    trace.getModel(),
+                    trace.getElapsedMs(),
+                    trace.isSuccess());
+            return;
+        }
+
+        for (AgentToolCallTrace toolCall : trace.getToolCalls()) {
+            log.info("[Agent Trace] traceId={} provider={} model={} tool={} args={} returnCount={} toolElapsed={}ms toolSuccess={} toolCount={} elapsed={}ms success={}",
+                    trace.getTraceId(),
+                    trace.getProvider(),
+                    trace.getModel(),
+                    toolCall.getToolName(),
+                    toolCall.getArguments(),
+                    toolCall.getReturnCount(),
+                    toolCall.getElapsedMs(),
+                    toolCall.isSuccess(),
+                    trace.getToolCount(),
+                    trace.getElapsedMs(),
+                    trace.isSuccess());
+        }
     }
 }
