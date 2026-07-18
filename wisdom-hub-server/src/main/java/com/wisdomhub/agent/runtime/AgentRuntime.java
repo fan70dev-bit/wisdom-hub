@@ -2,6 +2,7 @@ package com.wisdomhub.agent.runtime;
 
 import com.wisdomhub.agent.config.AgentAiProperties;
 import com.wisdomhub.agent.dto.AgentChatRequest;
+import com.wisdomhub.agent.memory.MemoryService;
 import com.wisdomhub.agent.trace.AgentExecutionTrace;
 import com.wisdomhub.agent.trace.AgentToolCallTrace;
 import com.wisdomhub.agent.trace.AgentTraceContext;
@@ -38,12 +39,14 @@ public class AgentRuntime {
     private final ObjectProvider<ChatClient> chatClientProvider;
     private final AgentAiProperties aiProperties;
     private final UserMapper userMapper;
+    private final MemoryService memoryService;
 
     public AgentRuntime(ObjectProvider<ChatClient> chatClientProvider, AgentAiProperties aiProperties,
-                        UserMapper userMapper) {
+                        UserMapper userMapper, MemoryService memoryService) {
         this.chatClientProvider = chatClientProvider;
         this.aiProperties = aiProperties;
         this.userMapper = userMapper;
+        this.memoryService = memoryService;
     }
 
     /**
@@ -117,7 +120,7 @@ public class AgentRuntime {
                 );
             }
 
-            String answer = chatClient.prompt(context.getMessage())
+            String answer = prompt(chatClient, context)
                     .call()
                     .content();
 
@@ -170,7 +173,7 @@ public class AgentRuntime {
                 if (chatClient == null) {
                     stream = Flux.just("AI 模型尚未启用或未配置，请先配置 DeepSeek API 后再尝试。");
                 } else {
-                    stream = chatClient.prompt(context.getMessage())
+                    stream = prompt(chatClient, context)
                             .stream()
                             .content();
                 }
@@ -217,6 +220,13 @@ public class AgentRuntime {
                 modelSettings != null ? modelSettings.getModel() : null,
                 startTime
         );
+    }
+
+    /**
+     * Builds a ChatClient request with the current Agent memory conversation.
+     */
+    private ChatClient.ChatClientRequestSpec prompt(ChatClient chatClient, AgentExecutionContext context) {
+        return memoryService.applyConversation(chatClient.prompt(context.getMessage()), context);
     }
 
     /**

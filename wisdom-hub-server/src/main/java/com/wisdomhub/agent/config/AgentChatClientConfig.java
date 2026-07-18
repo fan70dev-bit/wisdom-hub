@@ -1,5 +1,6 @@
 package com.wisdomhub.agent.config;
 
+import com.wisdomhub.agent.memory.MemoryService;
 import com.wisdomhub.agent.tool.KnowledgeTool;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatModel;
@@ -34,12 +35,13 @@ public class AgentChatClientConfig {
      *
      * @param chatModel auto-configured Spring AI ChatModel
      * @param knowledgeTool internal tool that searches the knowledge router
+     * @param memoryService Agent memory boundary
      * @return the ChatClient used by AgentRuntime
      */
     @Bean
     @ConditionalOnMissingBean(name = "agentChatClient")
     @ConditionalOnProperty(name = "spring.ai.model.chat", havingValue = "openai")
-    public ChatClient agentChatClient(ChatModel chatModel, KnowledgeTool knowledgeTool) {
+    public ChatClient agentChatClient(ChatModel chatModel, KnowledgeTool knowledgeTool, MemoryService memoryService) {
         return ChatClient.builder(chatModel)
                 .defaultSystem("""
                         你是 Wisdom Hub 的 AI 助手。
@@ -47,6 +49,7 @@ public class AgentChatClientConfig {
                         工具返回结果后，请用中文回答，并包含标题、来源和简短 AI 总结。
                         如果没有找到相关文章，请明确说明没有找到，并给出可尝试的关键词。
                         """)
+                .defaultAdvisors(memoryService.advisor())
                 .defaultTools(knowledgeTool)
                 .build();
     }
