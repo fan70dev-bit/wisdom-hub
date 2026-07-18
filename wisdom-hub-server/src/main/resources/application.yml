@@ -8,6 +8,21 @@ spring:
   profiles:
     active: dev
 
+wisdomhub:
+  agent:
+    ai:
+      enabled: false
+      default-provider: deepseek
+      openai:
+        enabled: false
+        model: gpt-4.1-mini
+      deepseek:
+        enabled: false
+        model: deepseek-chat
+      ollama:
+        enabled: false
+        model: qwen2.5:7b
+
 
 logging:
   level:
