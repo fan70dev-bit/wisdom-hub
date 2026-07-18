@@ -60,6 +60,17 @@ public final class AgentTraceContext {
     }
 
     /**
+     * Restores an existing trace on the current thread.
+     */
+    public static void set(AgentExecutionTrace trace) {
+        if (trace == null) {
+            clear();
+            return;
+        }
+        CURRENT_TRACE.set(trace);
+    }
+
+    /**
      * Clears the current trace to avoid leaking request state between threads.
      */
     public static void clear() {

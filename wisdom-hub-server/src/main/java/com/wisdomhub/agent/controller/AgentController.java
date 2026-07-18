@@ -8,11 +8,14 @@ import com.wisdomhub.context.UserContext;
 import com.wisdomhub.dto.Result;
 import com.wisdomhub.exception.UnauthorizedException;
 import jakarta.validation.Valid;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
 
 /**
  * HTTP entry point for the minimal Agent chat integration.
@@ -51,6 +54,23 @@ public class AgentController {
                 result.isModelAvailable()
         );
         return Result.success(response);
+    }
+
+    /**
+     * Streams an Agent chat response over Server-Sent Events.
+     *
+     * <p>The synchronous endpoint above remains unchanged. This endpoint uses
+     * Spring AI's Reactor-based {@code ChatClient.stream()} path and lets the
+     * runtime keep tool calling and trace logging active for the whole stream.</p>
+     *
+     * @param request user chat request
+     * @return streamed answer chunks as SSE data events
+     */
+    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> chatStream(@Valid @RequestBody AgentChatRequest request) {
+        ensureAuthenticated();
+        return agentRuntime.chatStream(request)
+                .map(chunk -> ServerSentEvent.builder(chunk).event("message").build());
     }
 
     /**

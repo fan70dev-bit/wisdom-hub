@@ -15,10 +15,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
+import reactor.core.publisher.Flux;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Minimal Agent runtime for chat integration.
@@ -134,6 +136,65 @@ public class AgentRuntime {
             AgentTraceContext.clear();
             AgentExecutionContextHolder.clear();
         }
+    }
+
+    /**
+     * Executes the Agent chat flow as a Reactor stream.
+     *
+     * <p>The authenticated user and model metadata are resolved immediately while
+     * the servlet request still owns {@link UserContext}. The Reactor subscription
+     * then re-attaches Agent context and trace ThreadLocals so Spring AI tool
+     * calls can keep recording trace entries during streaming.</p>
+     *
+     * @param request chat request from the streaming controller
+     * @return model answer chunks emitted by Spring AI ChatClient.stream()
+     */
+    public Flux<String> chatStream(AgentChatRequest request) {
+        LocalDateTime startTime = LocalDateTime.now();
+        AgentExecutionContext context = buildContext(request, startTime);
+        ChatClient chatClient = chatClientProvider.getIfAvailable();
+
+        return Flux.defer(() -> {
+            AgentExecutionContextHolder.set(context);
+            AgentExecutionTrace trace = AgentTraceContext.start(
+                    context.getTraceId(),
+                    context.getMessage(),
+                    context.getModel(),
+                    context.getProvider(),
+                    startTime
+            );
+            AtomicBoolean success = new AtomicBoolean(false);
+
+            try {
+                Flux<String> stream;
+                if (chatClient == null) {
+                    stream = Flux.just("AI 模型尚未启用或未配置，请先配置 DeepSeek API 后再尝试。");
+                } else {
+                    stream = chatClient.prompt(context.getMessage())
+                            .stream()
+                            .content();
+                }
+
+                return stream
+                        .doOnComplete(() -> success.set(true))
+                        .doOnError(error -> log.error("[Agent Stream] traceId={} failed", context.getTraceId(), error))
+                        .doFinally(signalType -> {
+                            finishTrace(trace, startTime, success.get());
+                            AgentTraceContext.clear();
+                            AgentExecutionContextHolder.clear();
+                        })
+                        .contextCapture();
+            } catch (Exception error) {
+                return Flux.<String>error(error)
+                        .doOnError(ex -> log.error("[Agent Stream] traceId={} failed", context.getTraceId(), ex))
+                        .doFinally(signalType -> {
+                            finishTrace(trace, startTime, false);
+                            AgentTraceContext.clear();
+                            AgentExecutionContextHolder.clear();
+                        })
+                        .contextCapture();
+            }
+        });
     }
 
     /**
