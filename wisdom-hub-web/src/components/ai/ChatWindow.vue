@@ -25,12 +25,17 @@
       </div>
     </div>
 
-    <ChatInput :loading="loading" @send="message => emit('send', message)" />
+    <ChatInput
+      :loading="loading"
+      :responding="responding"
+      @send="message => emit('send', message)"
+      @stop="emit('stop')"
+    />
   </section>
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { ChatDotRound } from '@element-plus/icons-vue'
 import ChatInput from './ChatInput.vue'
 import ChatMessage from './ChatMessage.vue'
@@ -39,13 +44,16 @@ import type { AiChatMessage } from './types'
 const props = defineProps<{
   messages: AiChatMessage[]
   loading: boolean
+  responding: boolean
 }>()
 
 const emit = defineEmits<{
   send: [message: string]
+  stop: []
 }>()
 
 const scrollArea = ref<HTMLElement | null>(null)
+const messageContent = computed(() => props.messages.map(message => message.content).join('\n'))
 
 const scrollToBottom = async () => {
   await nextTick()
@@ -55,6 +63,7 @@ const scrollToBottom = async () => {
 }
 
 watch(() => props.messages.length, scrollToBottom)
+watch(messageContent, scrollToBottom, { flush: 'post' })
 watch(() => props.loading, scrollToBottom)
 </script>
 
