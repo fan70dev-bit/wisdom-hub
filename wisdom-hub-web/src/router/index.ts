@@ -51,6 +51,12 @@ const routes = [
         name: 'Search',
         component: () => import('@/views/Search.vue'),
         meta: { title: '搜索' }
+      },
+      {
+        path: 'ai',
+        name: 'AiChat',
+        component: () => import('@/views/AiChatView.vue'),
+        meta: { title: 'AI Assistant' }
       }
     ]
   },

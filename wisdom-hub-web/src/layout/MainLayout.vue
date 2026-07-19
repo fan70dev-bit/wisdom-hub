@@ -27,6 +27,11 @@
             <template #title>搜索 (Search)</template>
           </el-menu-item>
 
+          <el-menu-item index="/ai">
+            <el-icon><ChatDotRound /></el-icon>
+            <template #title>AI Assistant</template>
+          </el-menu-item>
+
           <el-menu-item index="/bookmarks">
             <el-icon><CollectionTag /></el-icon>
             <template #title>书签 (Bookmarks)</template>
@@ -85,7 +90,7 @@ import { ElMessageBox, ElMessage } from 'element-plus'
 import request from '@/utils/request'
 import { 
   House, Compass, Search, CollectionTag, 
-  Plus, Setting, User, Refresh, Warning 
+  Plus, Setting, User, Refresh, Warning, ChatDotRound 
 } from '@element-plus/icons-vue'
 import { SwitchButton } from '@element-plus/icons-vue' // 记得导入图标
 
@@ -102,6 +107,7 @@ const currentPathName = computed(() => {
     '/garden': '我的花园',
     '/explore': '探索广场',
     '/search': '全局搜索',
+    '/ai': 'AI Assistant',
     '/bookmarks': '个人收藏',
     '/profile': '账号设置',
     '/post/create': '发布新动态'
